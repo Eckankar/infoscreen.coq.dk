@@ -29,6 +29,10 @@
                 line-height: 40px;
                 text-align: center;
                 vertical-align: middle;
+                cursor: default;
+                -moz-user-select: none;
+                -webkit-user-select: none;
+                -ms-user-select: none;
             }
 
             .banko_board {
