@@ -42,7 +42,7 @@ get '/fb/dikumemes' => sub {
             return;
         };
 
-        my @group_feed = grep { $_->{link} =~ qr{facebook\.com/photo\.php} } @{ $fb->fetch('1676857065872315/feed')->{data} };
+        my @group_feed = grep { ($_->{link} // '') =~ qr{facebook\.com/photo\.php} } @{ $fb->fetch('1676857065872315/feed')->{data} };
         my @res;
         for my $element (@group_feed) {
             my $elm = $fb->fetch($element->{object_id});
