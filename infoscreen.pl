@@ -3,6 +3,7 @@ use 5.012;
 use warnings;
 
 use Mojolicious::Lite;
+use Mojo::Log;
 
 use CHI;
 use DateTime::Format::ISO8601;
@@ -103,11 +104,13 @@ get '/banko/mark' => sub {
         $row >= 0 && $row < 3 &&
         $col >= 0 && $col < 9) {
         my $board = $data->{boards}->[$n];
+
         if ($board->{board}->[$row]->[$col] == $active_number) {
             unless (grep { $_->{c} == $col && $_->{r} == $row } @{ $board->{markers} }) {
                 push( @{ $board->{markers} }, { c => $col, r => $row } );
             }
             save_banko_data($user, $data);
+            $c->app->log->info($user . " marked " . $board->{board}->[$row]->[$col] . " on board $n");
             return $c->render(json => Mojo::JSON->true);
         }
     }
@@ -118,19 +121,19 @@ websocket '/banko/ws' => sub {
     my $c = shift;
 
     $active_number = int( rand(90) + 1 );
-    $c->inactivity_timeout(10);
-    $c->app->log->debug("Connected to websocket");
+    $c->inactivity_timeout(40);
+    $c->app->log->info("Connected to websocket");
 
     $c->on( message => sub {
         my $c = shift;
-        $c->app->log->debug("Number $active_number is active.");
+        $c->app->log->info("Number $active_number is active.");
         $c->send($active_number);
     } );
 
     $c->on( finish => sub {
         my ($c, $code, $reason) = @_;
         $active_number = -1;
-        $c->app->log->debug("Disconnected from socket; number inactive.");
+        $c->app->log->info("Disconnected from socket; number inactive.");
     } );
 };
 
@@ -244,6 +247,8 @@ sub initialize_banko_data {
 app->config(hypnotoad => {
     pid => '/var/run/web/infoscreen.pid',
     listen => [ 'http://127.0.0.1:14500' ],
+    workers => 1,
 });
 
+app->log( Mojo::Log->new( path => '/srv/infoscreen.coq.dk/logs/mojo.log', level => 'info' ) );
 app->start;
