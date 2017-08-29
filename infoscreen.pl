@@ -1,5 +1,5 @@
 #!/usr/bin/env perl
-use 5.012;
+use 5.024;
 use warnings;
 
 use Mojolicious::Lite;
@@ -42,10 +42,22 @@ get '/fb/dikumemes' => sub {
             return;
         };
 
-        my @group_feed = grep { ($_->{link} // '') =~ qr{facebook\.com/photo\.php} } @{ $fb->fetch('1676857065872315/feed')->{data} };
+        my @group_feed =
+            $fb->query->find('1676857065872315/feed')
+               ->include_metadata
+               ->select_fields( qw(object_id link) )
+               ->request
+               ->as_hashref->{data}->@*;
+
+        @group_feed = grep { ($_->{link} // '') =~ qr{facebook\.com/photo\.php} } @group_feed;
+
         my @res;
         for my $element (@group_feed) {
-            my $elm = $fb->fetch($element->{object_id});
+            my $elm = $fb->query->find($element->{object_id})
+                         ->include_metadata
+                         ->select_fields( qw(images) )
+                         ->request
+                         ->as_hashref;
             $element->{imagedata} = $elm;
             push(@res, $element);
         }
@@ -122,18 +134,18 @@ websocket '/banko/ws' => sub {
 
     $active_number = int( rand(90) + 1 );
     $c->inactivity_timeout(40);
-    $c->app->log->info("Connected to websocket");
+    $c->app->log->debug("Connected to websocket");
 
     $c->on( message => sub {
         my $c = shift;
-        $c->app->log->info("Number $active_number is active.");
+        $c->app->log->debug("Number $active_number is active.");
         $c->send($active_number);
     } );
 
     $c->on( finish => sub {
         my ($c, $code, $reason) = @_;
         $active_number = -1;
-        $c->app->log->info("Disconnected from socket; number inactive.");
+        $c->app->log->debug("Disconnected from socket; number inactive.");
     } );
 };
 
